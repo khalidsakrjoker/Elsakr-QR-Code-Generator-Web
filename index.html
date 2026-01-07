@@ -313,6 +313,49 @@
                     </p>
                 </div>
 
+                <!-- Frame Settings -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-400 mb-3">Frame Settings</label>
+                    <div class="flex items-center gap-4 mb-3">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="enable-frame" class="w-4 h-4 rounded" checked>
+                            <span class="text-sm text-gray-300">Enable Frame</span>
+                        </label>
+                    </div>
+                    <div id="frame-options" class="space-y-3">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Frame Text</label>
+                            <input type="text" id="frame-text" class="input-field" placeholder="SCAN ME"
+                                value="SCAN ME">
+                        </div>
+
+                        <!-- Frame Color Options -->
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Logo BG</label>
+                                <div class="color-picker-wrapper">
+                                    <input type="color" id="logo-bg-color" class="color-picker" value="#ffffff"
+                                        style="width:36px;height:36px;">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Text Color</label>
+                                <div class="color-picker-wrapper">
+                                    <input type="color" id="text-color" class="color-picker" value="#ffffff"
+                                        style="width:36px;height:36px;">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Text BG</label>
+                                <div class="color-picker-wrapper">
+                                    <input type="color" id="text-bg-color" class="color-picker" value="#000000"
+                                        style="width:36px;height:36px;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Logo Upload -->
                 <div class="mb-8">
                     <label class="block text-sm font-medium text-gray-400 mb-2">Logo (Optional)</label>

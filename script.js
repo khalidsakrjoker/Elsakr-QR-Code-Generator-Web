@@ -19,10 +19,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const removeLogoBtn = document.getElementById('remove-logo');
     const qrContainer = document.getElementById('qr-container');
     const resetColorsBtn = document.getElementById('reset-colors-btn');
+    const enableFrameCheckbox = document.getElementById('enable-frame');
+    const frameTextInput = document.getElementById('frame-text');
+    const frameOptions = document.getElementById('frame-options');
+    
+    // New color pickers for frame
+    const logoBgColorPicker = document.getElementById('logo-bg-color');
+    const textColorPicker = document.getElementById('text-color');
+    const textBgColorPicker = document.getElementById('text-bg-color');
 
     let currentType = 'url';
     let logoImage = null;
     let qrCode = null;
+    let finalCanvas = null;
 
     // Input containers
     const inputContainers = {
@@ -38,11 +47,9 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function() {
             const type = this.dataset.type;
             
-            // Update active tab
             tabButtons.forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             
-            // Show corresponding inputs
             Object.keys(inputContainers).forEach(key => {
                 inputContainers[key].classList.add('hidden');
             });
@@ -52,13 +59,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Frame checkbox toggle
+    enableFrameCheckbox.addEventListener('change', function() {
+        frameOptions.style.opacity = this.checked ? '1' : '0.5';
+        frameTextInput.disabled = !this.checked;
+        if (qrCode) generateQR();
+    });
+
     // Reset Colors
     resetColorsBtn.addEventListener('click', function() {
         fgColorPicker.value = '#000000';
         bgColorPicker.value = '#ffffff';
         fgColorLabel.textContent = '#000000';
         bgColorLabel.textContent = '#FFFFFF';
-        // Regenerate to apply changes
+        if (logoBgColorPicker) logoBgColorPicker.value = '#ffffff';
+        if (textColorPicker) textColorPicker.value = '#ffffff';
+        if (textBgColorPicker) textBgColorPicker.value = '#000000';
         if (qrCode) generateQR();
     });
 
@@ -163,12 +179,23 @@ document.addEventListener('DOMContentLoaded', function() {
         const data = getQRData();
         const fgColor = fgColorPicker.value;
         const bgColor = bgColorPicker.value;
+        const enableFrame = enableFrameCheckbox.checked;
+        const frameText = frameTextInput.value || 'SCAN ME';
+        
+        // Frame colors
+        const logoBgColor = logoBgColorPicker ? logoBgColorPicker.value : '#ffffff';
+        const textColor = textColorPicker ? textColorPicker.value : '#ffffff';
+        const textBgColor = textBgColorPicker ? textBgColorPicker.value : '#000000';
         
         // Clear previous QR code
         qrContainer.innerHTML = '';
         
-        // Create new QR code using qrcodejs library
-        qrCode = new QRCode(qrContainer, {
+        // Create hidden div for QR generation
+        const tempDiv = document.createElement('div');
+        tempDiv.style.display = 'none';
+        document.body.appendChild(tempDiv);
+        
+        qrCode = new QRCode(tempDiv, {
             text: data,
             width: 256,
             height: 256,
@@ -177,41 +204,129 @@ document.addEventListener('DOMContentLoaded', function() {
             correctLevel: QRCode.CorrectLevel.H
         });
         
-        // Add logo overlay after QR is rendered
-        if (logoImage) {
-            setTimeout(() => {
-                addLogoToQR(bgColor);
-            }, 100);
-        }
+        // Process after QR is rendered
+        setTimeout(() => {
+            const qrCanvas = tempDiv.querySelector('canvas');
+            if (!qrCanvas) {
+                document.body.removeChild(tempDiv);
+                return;
+            }
+            
+            if (enableFrame) {
+                // Create framed QR with logo on top
+                createFramedQR(qrCanvas, fgColor, bgColor, frameText, logoBgColor, textColor, textBgColor);
+            } else {
+                // Just show QR code (with optional center logo for backward compatibility)
+                finalCanvas = document.createElement('canvas');
+                finalCanvas.width = qrCanvas.width;
+                finalCanvas.height = qrCanvas.height;
+                const ctx = finalCanvas.getContext('2d');
+                ctx.drawImage(qrCanvas, 0, 0);
+                
+                finalCanvas.style.maxWidth = '100%';
+                finalCanvas.style.borderRadius = '16px';
+                qrContainer.appendChild(finalCanvas);
+            }
+            
+            document.body.removeChild(tempDiv);
+        }, 150);
     }
     
-    function addLogoToQR(bgColor) {
-        const qrImg = qrContainer.querySelector('img');
-        const qrCanvas = qrContainer.querySelector('canvas');
+    function createFramedQR(qrCanvas, fgColor, bgColor, frameText, logoBgColor, textColor, textBgColor) {
+        const padding = 20;
+        const borderWidth = 10;
+        const borderRadius = 20;
+        const textHeight = 50;
+        const logoAreaHeight = logoImage ? 80 : 0;
+        const logoSize = 60;
         
-        if (qrCanvas && logoImage) {
-            const ctx = qrCanvas.getContext('2d');
-            const logoSize = qrCanvas.width * 0.25;
-            const logoX = (qrCanvas.width - logoSize) / 2;
-            const logoY = (qrCanvas.height - logoSize) / 2;
+        const totalWidth = qrCanvas.width + (padding * 2) + (borderWidth * 2);
+        const totalHeight = qrCanvas.height + (padding * 2) + (borderWidth * 2) + textHeight + logoAreaHeight;
+        
+        const framedCanvas = document.createElement('canvas');
+        framedCanvas.width = totalWidth;
+        framedCanvas.height = totalHeight;
+        
+        const ctx = framedCanvas.getContext('2d');
+        
+        // Draw outer frame (border color)
+        ctx.fillStyle = fgColor;
+        roundedRect(ctx, 0, 0, totalWidth, totalHeight, borderRadius);
+        ctx.fill();
+        
+        // Draw inner background
+        ctx.fillStyle = bgColor;
+        roundedRect(ctx, borderWidth, borderWidth, totalWidth - (borderWidth * 2), totalHeight - (borderWidth * 2), borderRadius - 5);
+        ctx.fill();
+        
+        let currentY = borderWidth + padding;
+        
+        // Draw logo at top if present
+        if (logoImage) {
+            // Draw logo background (for transparent logos)
+            const logoBgX = (totalWidth - logoSize - 20) / 2;
+            const logoBgY = currentY;
+            ctx.fillStyle = logoBgColor;
+            roundedRect(ctx, logoBgX, logoBgY, logoSize + 20, logoSize + 10, 8);
+            ctx.fill();
             
-            // Draw background for logo
-            ctx.fillStyle = bgColor;
-            ctx.fillRect(logoX - 4, logoY - 4, logoSize + 8, logoSize + 8);
-            
-            // Draw logo
+            // Draw logo centered
+            const logoX = (totalWidth - logoSize) / 2;
+            const logoY = currentY + 5;
             ctx.drawImage(logoImage, logoX, logoY, logoSize, logoSize);
             
-            // Update the image element too if it exists
-            if (qrImg) {
-                qrImg.src = qrCanvas.toDataURL('image/png');
-            }
+            currentY += logoSize + 20;
         }
+        
+        // Draw QR code
+        const qrX = borderWidth + padding;
+        const qrY = currentY;
+        ctx.drawImage(qrCanvas, qrX, qrY);
+        
+        currentY += qrCanvas.height + 5;
+        
+        // Draw text background
+        const textBgPadding = 10;
+        ctx.fillStyle = textBgColor;
+        const textBgWidth = totalWidth - (borderWidth * 2) - (padding * 2) + (textBgPadding * 2);
+        const textBgX = borderWidth + padding - textBgPadding;
+        const textBgY = currentY;
+        roundedRect(ctx, textBgX, textBgY, textBgWidth, textHeight - 10, 8);
+        ctx.fill();
+        
+        // Draw frame text
+        ctx.fillStyle = textColor;
+        ctx.font = 'bold 24px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        const textY = currentY + (textHeight - 10) / 2;
+        ctx.fillText(frameText.toUpperCase(), totalWidth / 2, textY);
+        
+        // Store and display
+        finalCanvas = framedCanvas;
+        framedCanvas.style.maxWidth = '100%';
+        framedCanvas.style.borderRadius = '16px';
+        qrContainer.appendChild(framedCanvas);
+    }
+
+    function roundedRect(ctx, x, y, width, height, radius) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
     }
 
     // Download PNG
     downloadPngBtn.addEventListener('click', function() {
-        const canvas = qrContainer.querySelector('canvas');
+        const canvas = finalCanvas || qrContainer.querySelector('canvas');
         if (canvas) {
             const link = document.createElement('a');
             link.download = 'elsakr-qrcode.png';
@@ -222,12 +337,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Download SVG (fallback to PNG for this library)
+    // Download SVG
     downloadSvgBtn.addEventListener('click', function() {
-        const canvas = qrContainer.querySelector('canvas');
+        const canvas = finalCanvas || qrContainer.querySelector('canvas');
         if (canvas) {
-            // qrcodejs doesn't support SVG, so we download as PNG with .svg extension
-            // Alternatively, convert canvas to SVG
             const svgData = canvasToSVG(canvas);
             const blob = new Blob([svgData], { type: 'image/svg+xml' });
             const url = URL.createObjectURL(blob);
@@ -251,7 +364,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Copy to clipboard
     copyBtn.addEventListener('click', async function() {
-        const canvas = qrContainer.querySelector('canvas');
+        const canvas = finalCanvas || qrContainer.querySelector('canvas');
         if (!canvas) {
             alert('Please generate a QR code first!');
             return;
@@ -263,7 +376,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 new ClipboardItem({ 'image/png': blob })
             ]);
             
-            // Visual feedback
             const originalText = copyBtn.innerHTML;
             copyBtn.innerHTML = '✅ Copied!';
             copyBtn.style.background = '#10b981';
